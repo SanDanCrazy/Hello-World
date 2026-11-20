@@ -68,6 +68,8 @@ def load_raw(path: Path) -> dict:
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError:
         raise DataError("数据文件不存在: {}".format(path))
+    except UnicodeDecodeError:
+        raise DataError("数据文件编码非法（需 UTF-8）: {}".format(path))
     except OSError as exc:
         raise DataError("无法读取数据文件 {}: {}".format(path, exc))
     try:
@@ -326,26 +328,33 @@ def _build_parser() -> _Parser:
     parser.add_argument(
         "--data",
         type=Path,
+        metavar="PATH",
         default=None,
         help="自定义数据文件路径，默认 data/cn_holidays.json",
     )
     return parser
 
 
-def _configure_stdout() -> None:
-    stream = sys.stdout
-    reconfigure = getattr(stream, "reconfigure", None)
-    if callable(reconfigure):
-        reconfigure(encoding="utf-8", errors="replace")
+def _configure_streams() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8", errors="replace")
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     """CLI 入口，返回进程退出码。"""
+    _configure_streams()
     parser = _build_parser()
     args_list = list(sys.argv[1:] if argv is None else argv)
 
     try:
         args = parser.parse_args(args_list)
+    except SystemExit as exc:
+        code = exc.code
+        if code is None:
+            return 0
+        return code if isinstance(code, int) else 1
     except UsageError as exc:
         print("参数错误: {}".format(exc), file=sys.stderr)
         return 1
@@ -384,7 +393,6 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 2
 
     report = build_report(years, data)
-    _configure_stdout()
     if args.format == "json":
         print(render_json(report))
     else:

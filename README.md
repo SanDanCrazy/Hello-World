@@ -87,6 +87,8 @@ JSON 输出（`--format json`）结构稳定，顶层固定为 `{"country": "CN"
 - `end >= start`；`statutory_days` 为整数且不超过放假天数。
 - `makeup_workdays` 为日期数组（可为空），不得落在本年度任一放假区间内。
 - 节日起始日期必须属于其所属年份（跨年节日归属起始年）。
+- 数据文件必须保存为 UTF-8 编码（不支持 GBK/GB2312 等，暂不支持 UTF-8 BOM）。
+- 节日与 `makeup_workdays` 条目请勿重复填写；脚本按条目原样统计，不做去重。
 
 #### 新增年度
 

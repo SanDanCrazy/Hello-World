@@ -228,6 +228,43 @@ class TestCli(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("小计：放假 30 天", out)
 
+    def test_non_utf8_data_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = Path(tmp) / "gbk.json"
+            bad.write_bytes(
+                '{"years": {"2025": {"holidays": [{"name": "元旦", '
+                '"start": "2025-01-01", "end": "2025-01-01", '
+                '"statutory_days": 1}]}}}'.encode("gbk")
+            )
+            code, out, err = self.run_cli(["--year", "2025", "--data", str(bad)])
+        self.assertEqual(code, 3)
+        self.assertEqual(out, "")
+        self.assertIn("数据错误", err)
+        self.assertIn("编码", err)
+        self.assertNotIn("Traceback", err)
+
+    def test_missing_data_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "nope.json"
+            code, out, err = self.run_cli(["--year", "2025", "--data", str(missing)])
+        self.assertEqual(code, 3)
+        self.assertEqual(out, "")
+        self.assertIn("数据文件不存在", err)
+        self.assertNotIn("Traceback", err)
+
+    def test_invalid_format_choice(self):
+        code, out, err = self.run_cli(["--year", "2025", "--format", "xml"])
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertIn("参数错误", err)
+        self.assertNotIn("Traceback", err)
+
+    def test_help_returns_zero(self):
+        code, out, err = self.run_cli(["--help"])
+        self.assertEqual(code, 0)
+        self.assertIn("usage", out)
+        self.assertEqual(err, "")
+
 
 class TestEncoding(unittest.TestCase):
     def test_json_not_escaped(self):
